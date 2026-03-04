@@ -889,8 +889,7 @@ const MOCK_ROUTES: MockHop[][] = [
 ]
 
 // Pick a route index 0-3 based on the target string (deterministic, no external call)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const pickMockRoute = (target: string): MockHop[] => {
+export const pickMockRoute = (target: string): MockHop[] => {
   // Private / LAN targets → short route
   if (
     /^192\.168\./.test(target) ||
