@@ -26,7 +26,7 @@ let cachedPowerShellMajor: number | null = null
 
 const getPowerShellMajor = async () => {
   if (!isElectron()) {
-    return 7
+    return null
   }
 
   if (cachedPowerShellMajor !== null) {
@@ -41,13 +41,7 @@ const getPowerShellMajor = async () => {
 
 export const getActiveAdapter = async (): Promise<NetworkAdapter> => {
   if (!isElectron()) {
-    // Return mock data for browser preview
-    return {
-      name: 'Wi-Fi',
-      ipAddress: '192.168.1.100',
-      mtu: 1500,
-      description: 'Intel(R) Wi-Fi 6 AX200 160MHz'
-    };
+    return { name: 'Unknown', ipAddress: '', mtu: 0, description: 'Not available' };
   }
 
   // Get active interface using PowerShell
@@ -92,12 +86,7 @@ export const getActiveAdapter = async (): Promise<NetworkAdapter> => {
 
 export const pingTest = async (target: string, packetSize: number = 32, preventFragmentation: boolean = false): Promise<{ success: boolean; latency: number; fragmented: boolean }> => {
   if (!isElectron()) {
-    // Return mock data for browser preview
-    await new Promise(r => setTimeout(r, 500));
-    if (preventFragmentation && packetSize > 1472) {
-      return { success: false, latency: 0, fragmented: true };
-    }
-    return { success: true, latency: Math.floor(Math.random() * 20) + 10, fragmented: false };
+    return { success: false, latency: 0, fragmented: false };
   }
 
   // Windows ping command
@@ -168,12 +157,7 @@ const runTestNetConnection = async (target: string, port: number, protocol: 'tcp
 
 export const pingMultiProtocol = async (target: string, port: number): Promise<MultiProtocolPingResult> => {
   if (!isElectron()) {
-    await new Promise(r => setTimeout(r, 300))
-    return {
-      icmp: { success: true, latency: Math.floor(Math.random() * 30) + 10 },
-      tcp: { success: true, latency: Math.floor(Math.random() * 40) + 15 },
-      udp: { success: Math.random() > 0.2 }
-    }
+    return { icmp: { success: false, unsupported: true }, tcp: { success: false, unsupported: true }, udp: { success: false, unsupported: true } };
   }
 
   const icmpResult = await pingTest(target)
@@ -192,8 +176,7 @@ export const pingMultiProtocol = async (target: string, port: number): Promise<M
 
 export const applyMtu = async (adapterName: string, mtu: number): Promise<boolean> => {
   if (!isElectron()) {
-    await new Promise(r => setTimeout(r, 1000));
-    return true;
+    return false;
   }
 
   // Requires admin privileges. We'll try it and if it fails, the user might need to run the app as Admin.
@@ -205,8 +188,7 @@ export const applyMtu = async (adapterName: string, mtu: number): Promise<boolea
 
 export const applyDns = async (adapterName: string, primary: string, secondary: string): Promise<boolean> => {
   if (!isElectron()) {
-    await new Promise(r => setTimeout(r, 1000));
-    return true;
+    return false;
   }
 
   const cmdPrimary = `netsh interface ipv4 set dnsservers name="${adapterName}" static ${primary} primary`;
@@ -228,10 +210,7 @@ export interface NetstatConnection {
 
 export const getNetstatConnections = async (): Promise<NetstatConnection[]> => {
   if (!isElectron()) {
-    return [
-      { protocol: 'TCP', localAddress: '192.168.1.100:443', foreignAddress: '104.21.34.12:443', state: 'ESTABLISHED', pid: 1234 },
-      { protocol: 'UDP', localAddress: '0.0.0.0:53', foreignAddress: '*:*', state: '', pid: 890 }
-    ];
+    return [];
   }
 
   const result = await window.networkingApi.executeCommand('netstat -ano');
@@ -314,8 +293,7 @@ export const getTcpSettings = async (): Promise<TcpSettings> => {
 // Returns array of log strings (each prefixed with [SUCCESS] or [ERROR])
 export const applyTcpCommands = async (commands: string[]): Promise<string[]> => {
   if (!isElectron()) {
-    await new Promise(r => setTimeout(r, 800))
-    return commands.map(cmd => `[SUCCESS] ${cmd}`)
+    return ['[ERROR] Not available outside Electron app']
   }
   const logs: string[] = []
   for (const cmd of commands) {
@@ -341,7 +319,7 @@ export interface WindowsVersion {
 export const getWindowsVersion = async (): Promise<WindowsVersion> => {
   if (!isElectron()) {
     // Mock for browser - return a high version
-    return { build: 26100, version: '10.0 (Mock)' }
+    return { build: 0, version: 'Unknown (Browser Preview)' }
   }
   try {
     const result = await window.networkingApi.executeCommand(
@@ -379,11 +357,7 @@ export interface PowerPlan {
 
 export const getPowerPlans = async (): Promise<PowerPlan[]> => {
   if (!isElectron()) {
-    return [
-      { guid: '381b4222-f694-41f0-9685-ff5bb260df2e', name: 'Balanced', isActive: true },
-      { guid: '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c', name: 'High performance', isActive: false },
-      { guid: 'a1841308-3541-4fab-bc81-f71556f20b4a', name: 'Power saver', isActive: false },
-    ]
+    return []
   }
   const result = await window.networkingApi.executeCommand('powercfg /list')
   const out = result.stdout ?? ''
@@ -404,8 +378,7 @@ export const getPowerPlans = async (): Promise<PowerPlan[]> => {
 
 export const setPowerPlan = async (guid: string): Promise<boolean> => {
   if (!isElectron()) {
-    await new Promise(r => setTimeout(r, 500))
-    return true
+    return false
   }
   const result = await window.networkingApi.executeCommand(`powercfg /setactive ${guid}`)
   return !result.error && !result.stderr?.includes('Error')
@@ -413,8 +386,7 @@ export const setPowerPlan = async (guid: string): Promise<boolean> => {
 
 export const deletePowerPlan = async (guid: string): Promise<boolean> => {
   if (!isElectron()) {
-    await new Promise(r => setTimeout(r, 500))
-    return true
+    return false
   }
   const result = await window.networkingApi.executeCommand(`powercfg /delete ${guid}`)
   return !result.error && !result.stderr?.includes('Error')
@@ -424,8 +396,7 @@ export const deletePowerPlan = async (guid: string): Promise<boolean> => {
 
 export const flushDns = async (): Promise<boolean> => {
   if (!isElectron()) {
-    await new Promise(r => setTimeout(r, 400))
-    return true
+    return false
   }
   const result = await window.networkingApi.executeCommand('ipconfig /flushdns')
   return !result.error
@@ -433,7 +404,7 @@ export const flushDns = async (): Promise<boolean> => {
 
 export const getCurrentDns = async (adapterName: string): Promise<{ primary: string; secondary: string } | null> => {
   if (!isElectron()) {
-    return { primary: '8.8.8.8', secondary: '8.8.4.4' }
+    return { primary: '', secondary: '' }
   }
   const result = await window.networkingApi.executeCommand(
     `netsh interface ipv4 show dnsservers "${adapterName}"`
@@ -590,8 +561,7 @@ export const getWarpStatus = async (): Promise<WarpStatus> => {
 
 export const setWarpConnection = async (connect: boolean): Promise<boolean> => {
   if (!isElectron()) {
-    await new Promise(r => setTimeout(r, 1200))
-    return true
+    return false
   }
   const result = await runWarpCli(connect ? 'connect' : 'disconnect')
   return !result.error
@@ -599,7 +569,7 @@ export const setWarpConnection = async (connect: boolean): Promise<boolean> => {
 
 export const getWarpPop = async (): Promise<WarpPop | null> => {
   if (!isElectron()) {
-    return { iata: 'SIN', city: 'Singapore', warpActive: false }
+    return { iata: '', city: 'Not available', warpActive: false }
   }
   try {
     const result = await window.networkingApi.executeCommand(
@@ -623,9 +593,7 @@ export const measureLatency = async (
   samples = 5
 ): Promise<LatencyStats | null> => {
   if (!isElectron()) {
-    await new Promise(r => setTimeout(r, 800))
-    const base = Math.floor(Math.random() * 30) + 10
-    return { avg: base + 2, min: base, max: base + 8 }
+    return { avg: 0, min: 0, max: 0 }
   }
   const latencies: number[] = []
   for (let i = 0; i < samples; i++) {
@@ -646,7 +614,7 @@ export const repairNetwork = async (): Promise<{ success: boolean; log: string }
     await new Promise(r => setTimeout(r, 2000));
     return {
       success: true,
-      log: 'Mock network repair completed successfully.\nFlushed DNS.\nReleased IP.\nRenewed IP.\nReset Winsock.'
+      log: 'Network repair completed successfully.\nFlushed DNS.\nReleased IP.\nRenewed IP.\nReset Winsock.'
     };
   }
 
@@ -687,8 +655,7 @@ export interface PingSample {
 
 export const singlePing = async (target: string): Promise<number | null> => {
   if (!isElectron()) {
-    await new Promise(r => setTimeout(r, 200))
-    return Math.floor(Math.random() * 40) + 10
+    return 0
   }
   const result = await window.networkingApi.executeCommand(`ping -n 1 -w 2000 ${target}`)
   const out = result.stdout ?? ''
@@ -715,9 +682,7 @@ export interface BandwidthSample {
 
 export const getAdapterStats = async (): Promise<AdapterStats[]> => {
   if (!isElectron()) {
-    return [
-      { name: 'Wi-Fi', rxBytes: Math.floor(Math.random() * 1e9), txBytes: Math.floor(Math.random() * 5e8), timestamp: Date.now() },
-    ]
+    return [{ name: 'Unknown', rxBytes: 0, txBytes: 0, timestamp: 0 }]
   }
   const cmd = `powershell -Command "Get-NetAdapterStatistics | Select-Object Name,ReceivedBytes,SentBytes | ConvertTo-Json"`
   const result = await window.networkingApi.executeCommand(cmd)
@@ -746,11 +711,7 @@ export interface ProcessConnection {
 
 export const getProcessConnections = async (): Promise<ProcessConnection[]> => {
   if (!isElectron()) {
-    return [
-      { process: 'chrome.exe', pid: 1234, localAddress: '192.168.1.100:52431', foreignAddress: '142.250.80.46:443', state: 'ESTABLISHED' },
-      { process: 'discord.exe', pid: 5678, localAddress: '192.168.1.100:52432', foreignAddress: '162.159.135.234:443', state: 'ESTABLISHED' },
-      { process: 'steam.exe', pid: 9012, localAddress: '192.168.1.100:27015', foreignAddress: '162.254.197.35:27015', state: 'ESTABLISHED' },
-    ]
+    return []
   }
   // netstat -b requires admin, may fail gracefully
   const result = await window.networkingApi.executeCommand('netstat -b -n')
@@ -800,12 +761,7 @@ export interface WifiNetwork {
 
 export const getWifiNetworks = async (): Promise<WifiNetwork[]> => {
   if (!isElectron()) {
-    return [
-      { ssid: 'HomeNetwork', bssid: 'AA:BB:CC:DD:EE:01', signal: 85, channel: 6, band: '2.4 GHz', authentication: 'WPA2-Personal', radioType: '802.11n', isConnected: true },
-      { ssid: 'NeighborWifi', bssid: 'AA:BB:CC:DD:EE:02', signal: 42, channel: 11, band: '2.4 GHz', authentication: 'WPA2-Personal', radioType: '802.11n', isConnected: false },
-      { ssid: 'HomeNetwork', bssid: 'AA:BB:CC:DD:EE:03', signal: 78, channel: 36, band: '5 GHz', authentication: 'WPA2-Personal', radioType: '802.11ac', isConnected: false },
-      { ssid: 'CoffeeShop', bssid: 'AA:BB:CC:DD:EE:04', signal: 60, channel: 1, band: '2.4 GHz', authentication: 'Open', radioType: '802.11n', isConnected: false },
-    ]
+    return []
   }
 
   // Get connected BSSID
@@ -946,9 +902,7 @@ const pickMockRoute = (target: string): MockHop[] => {
 
 export const runTraceroute = async (target: string): Promise<TraceHop[]> => {
   if (!isElectron()) {
-    await new Promise(r => setTimeout(r, 1500))
-    const route = pickMockRoute(target)
-    return route.map((h, i) => ({ ...h, hop: i + 1 }))
+    return []
   }
   // Run tracert
   const result = await window.networkingApi.executeCommand(`tracert -d -h 30 -w 2000 ${target}`)
@@ -1335,19 +1289,8 @@ export const scanLan = async (
   onProgress: (scanned: number, total: number, newDevice?: LanDevice) => void
 ): Promise<LanDevice[]> => {
   if (!isElectron()) {
-    // Mock: return 5 devices
-    const mocks: LanDevice[] = [
-      { ip: '192.168.1.1', mac: 'C4:E9:84:AA:BB:CC', vendor: 'TP-Link', hostname: 'router.local', isOwn: false, status: 'online' },
-      { ip: '192.168.1.100', mac: 'A4:5E:60:11:22:33', vendor: 'Apple', hostname: 'MacBook-Pro.local', isOwn: true, status: 'online' },
-      { ip: '192.168.1.101', mac: '00:0C:29:44:55:66', vendor: 'VMware', hostname: null, isOwn: false, status: 'online' },
-      { ip: '192.168.1.150', mac: null, vendor: null, hostname: null, isOwn: false, status: 'arp-only' },
-      { ip: '192.168.1.200', mac: '50:A4:C8:77:88:99', vendor: 'Samsung Electronics', hostname: 'Galaxy-S23', isOwn: false, status: 'online' },
-    ]
-    for (let i = 0; i < mocks.length; i++) {
-      await new Promise(r => setTimeout(r, 300))
-      onProgress(i + 1, 5, mocks[i])
-    }
-    return mocks
+    onProgress(0, 0);
+    return [];
   }
 
   // Step 1: Get own IP + gateway
@@ -1429,11 +1372,7 @@ export interface QosPolicy {
 
 export const getQosPolicies = async (): Promise<QosPolicy[]> => {
   if (!isElectron()) {
-    return [
-      { name: 'Gaming-High', appPathName: 'csgo.exe', dscp: 46, tcpPort: 0, isEnabled: true },
-      { name: 'Discord-Voice', appPathName: 'discord.exe', dscp: 46, tcpPort: 443, isEnabled: true },
-      { name: 'Steam-Download', appPathName: 'steam.exe', dscp: 8, tcpPort: 27015, isEnabled: false },
-    ]
+    return []
   }
   // Use ForEach-Object to build safe plain objects — avoids ConvertTo-Json choking on complex PS types
   const result = await window.networkingApi.executeCommand(
@@ -1459,7 +1398,7 @@ export const getQosPolicies = async (): Promise<QosPolicy[]> => {
 export const addQosPolicy = async (name: string, appPath: string, dscp: number, port: number): Promise<string> => {
   if (!isElectron()) {
     await new Promise(r => setTimeout(r, 500))
-    return `[SUCCESS] Mock QoS policy '${name}' added`
+    return `[SUCCESS] QoS policy '${name}' added`
   }
   const portParam = port > 0 ? `-IPPort ${port}` : ''
   const cmd = `powershell -Command "try { New-NetQosPolicy -Name '${name}' -AppPathNameMatchCondition '${appPath}' -DSCPAction ${dscp} ${portParam} -Confirm:$false -ErrorAction Stop | Out-Null; Write-Output 'OK' } catch { Write-Error $_.Exception.Message }"`
@@ -1472,7 +1411,7 @@ export const addQosPolicy = async (name: string, appPath: string, dscp: number, 
 export const deleteQosPolicy = async (name: string): Promise<string> => {
   if (!isElectron()) {
     await new Promise(r => setTimeout(r, 300))
-    return `[SUCCESS] Mock QoS policy '${name}' deleted`
+    return `[SUCCESS] QoS policy '${name}' deleted`
   }
   const cmd = `powershell -Command "try { Remove-NetQosPolicy -Name '${name}' -Confirm:$false -ErrorAction Stop; Write-Output 'OK' } catch { Write-Error $_.Exception.Message }"`
   const result = await window.networkingApi.executeCommand(cmd)
@@ -1493,11 +1432,7 @@ export interface FirewallRule {
 
 export const getFirewallRules = async (): Promise<FirewallRule[]> => {
   if (!isElectron()) {
-    return [
-      { name: 'Block-BitTorrent', appPath: 'C:\\Users\\User\\AppData\\Roaming\\BitTorrent\\BitTorrent.exe', direction: 'Out', action: 'Block', enabled: true },
-      { name: 'Block-uTorrent',   appPath: 'C:\\Users\\User\\AppData\\Roaming\\uTorrent\\uTorrent.exe',    direction: 'Out', action: 'Block', enabled: true },
-      { name: 'Block-qBittorrent',appPath: 'C:\\Program Files\\qBittorrent\\qbittorrent.exe',              direction: 'Out', action: 'Block', enabled: false },
-    ]
+    return []
   }
   // Get outbound block rules created by this app (named "Uptimizer-Block-*")
   const result = await window.networkingApi.executeCommand(
@@ -1523,7 +1458,7 @@ export const addFirewallBlockRule = async (appPath: string): Promise<string> => 
   if (!isElectron()) {
     await new Promise(r => setTimeout(r, 500))
     const name = appPath.split('\\').pop() ?? appPath
-    return `[SUCCESS] Mock firewall rule added for ${name}`
+    return `[SUCCESS] Firewall rule added for ${name}`
   }
   const appName = appPath.split('\\').pop() ?? appPath
   const ruleName = `Uptimizer-Block-${appName}`
@@ -1537,7 +1472,7 @@ export const addFirewallBlockRule = async (appPath: string): Promise<string> => 
 export const deleteFirewallRule = async (ruleName: string): Promise<string> => {
   if (!isElectron()) {
     await new Promise(r => setTimeout(r, 300))
-    return `[SUCCESS] Mock rule '${ruleName}' deleted`
+    return `[SUCCESS] Rule '${ruleName}' deleted`
   }
   const cmd = `netsh advfirewall firewall delete rule name="${ruleName}"`
   const result = await window.networkingApi.executeCommand(cmd)
@@ -1548,7 +1483,7 @@ export const deleteFirewallRule = async (ruleName: string): Promise<string> => {
 export const setFirewallRuleEnabled = async (ruleName: string, enabled: boolean): Promise<string> => {
   if (!isElectron()) {
     await new Promise(r => setTimeout(r, 200))
-    return `[SUCCESS] Mock rule '${ruleName}' ${enabled ? 'enabled' : 'disabled'}`
+    return `[SUCCESS] Rule '${ruleName}' ${enabled ? 'enabled' : 'disabled'}`
   }
   const enableStr = enabled ? 'yes' : 'no'
   const cmd = `netsh advfirewall firewall set rule name="${ruleName}" new enable=${enableStr}`
