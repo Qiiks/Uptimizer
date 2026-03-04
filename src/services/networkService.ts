@@ -714,14 +714,13 @@ export const getProcessConnections = async (): Promise<ProcessConnection[]> => {
     return []
   }
   // netstat -b requires admin, may fail gracefully
-  const result = await window.networkingApi.executeCommand('netstat -b -n')
+  const result = await window.networkingApi.executeCommand('netstat -b -n -o')
   const out = result.stdout ?? ''
   if (!out) return []
 
   const connections: ProcessConnection[] = []
   const lines = out.split('\n')
   let currentProcess = ''
-  const currentPid = 0
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim()
@@ -736,7 +735,7 @@ export const getProcessConnections = async (): Promise<ProcessConnection[]> => {
     if (connMatch && currentProcess) {
       connections.push({
         process: currentProcess,
-        pid: currentPid,
+        pid: connMatch[5] ? parseInt(connMatch[5], 10) : 0,
         localAddress: connMatch[2],
         foreignAddress: connMatch[3],
         state: connMatch[4] ?? ''
@@ -931,16 +930,12 @@ export const runTraceroute = async (target: string): Promise<TraceHop[]> => {
     const ipMatch = trimmedLine.match(/([\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3})(?:\s+|$)/)
     const msValues = [...trimmedLine.matchAll(/<?\s*(\d+)\s*ms/gi)]
 
-    console.log('[traceroute] Parsing line:', trimmedLine)
-    console.log('[traceroute] hopNumMatch:', hopNumMatch?.[1], 'ipMatch:', ipMatch?.[1], 'msValues:', msValues.map(m => m[1]))
-
     if (hopNumMatch && ipMatch && msValues.length > 0) {
       // Use the median ms value (middle probe) for best accuracy; fall back to last
       const latencies = msValues.map(m => parseInt(m[1], 10))
       const latency = latencies[Math.floor(latencies.length / 2)]
       const hopNum = parseInt(hopNumMatch[1], 10)
       const ip = ipMatch[1]
-      console.log('[traceroute] Extracted hop:', hopNum, 'IP:', ip, 'latency:', latency)
       hops.push({
         hop: hopNum,
         ip,
@@ -953,15 +948,12 @@ export const runTraceroute = async (target: string): Promise<TraceHop[]> => {
 
   // Geolocate all non-private IPs in batch via dedicated IPC handler (Node https → ip-api.com)
   const publicHops = hops.filter(h => h.ip && !isPrivateIp(h.ip))
-  console.log('[traceroute] Public hops to geolocate:', publicHops.map(h => h.ip))
   if (publicHops.length > 0) {
     try {
       const ips = publicHops.map(h => h.ip!)
-      console.log('[traceroute] Requesting geolocation for IPs:', ips)
       const geoData = await window.networkingApi.geolocateIps(ips) as Array<{
         status: string; lat: number; lon: number; city: string; country: string; isp: string; as: string
       }>
-      console.log('[traceroute] Received geoData:', geoData)
       publicHops.forEach((hop, i) => {
         const geo = geoData[i]
         if (geo?.status === 'success') {
@@ -971,18 +963,15 @@ export const runTraceroute = async (target: string): Promise<TraceHop[]> => {
           hop.country = geo.country
           hop.isp = geo.isp
           hop.asn = geo.as
-          console.log('[traceroute] Applied geo to hop', hop.hop, ':', geo.city, geo.country)
         } else if (hop.ip && FALLBACK_GEOLOCATION[hop.ip]) {
           // API returned non-success for this IP — use fallback if available
           const fb = FALLBACK_GEOLOCATION[hop.ip]
           hop.lat = fb.lat; hop.lon = fb.lon; hop.city = fb.city
           hop.country = fb.country; hop.isp = fb.isp; hop.asn = fb.asn
-          console.log('[traceroute] Using fallback geo for hop', hop.hop, ':', fb.city, fb.country)
         }
       })
     } catch (err) {
       // ip-api.com request failed — apply fallback data for any known IPs
-      console.warn('[traceroute] Geolocation API failed, using fallback data where available:', err)
       publicHops.forEach(hop => {
         if (hop.ip && FALLBACK_GEOLOCATION[hop.ip]) {
           const fb = FALLBACK_GEOLOCATION[hop.ip]
