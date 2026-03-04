@@ -165,7 +165,7 @@ ipcMain.handle('geolocate-ips', async (_, ips: string[]) => {
   // ip-api.com batch: POST array of { query } objects, returns array in same order
   const body = JSON.stringify(ips.map(ip => ({ query: ip, fields: 'status,lat,lon,city,country,isp,as,query' })))
 
-  const raw = await new Promise<string>((resolve) => {
+  const fetchBatch = (): Promise<string> => new Promise<string>((resolve) => {
     const options = {
       hostname: 'ip-api.com',
       port: 80,
@@ -197,6 +197,25 @@ ipcMain.handle('geolocate-ips', async (_, ips: string[]) => {
     req.write(body)
     req.end()
   })
+
+  const delay = (ms: number): Promise<void> => new Promise<void>(r => setTimeout(r, ms))
+
+  let raw = '[]'
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    if (attempt > 1) {
+      const waitMs = Math.pow(2, attempt - 2) * 1000 // 1000ms, 2000ms
+      writeLog(`[geolocate-ips] retry attempt ${attempt} after ${waitMs}ms delay`)
+      await delay(waitMs)
+    }
+    raw = await fetchBatch()
+    if (raw !== '[]' && raw !== '') break
+    if (attempt < 3) writeLog(`[geolocate-ips] attempt ${attempt} failed, will retry`)
+  }
+
+  if (raw === '[]' || raw === '') {
+    writeLog('[geolocate-ips] all 3 attempts failed, returning empty results')
+    return ips.map(() => failResult)
+  }
 
   let batchData: Array<{ status: string; lat: number; lon: number; city: string; country: string; isp: string; as: string; query: string }> = []
   try {
