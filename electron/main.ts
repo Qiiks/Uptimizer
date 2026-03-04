@@ -37,7 +37,7 @@ function createWindow() {
   RENDERER_DIST = path.join(app.getAppPath(), 'dist')
   writeLog(`[main] APP_ROOT=${process.env.APP_ROOT}`)
   writeLog(`[main] RENDERER_DIST=${RENDERER_DIST}`)
-  writeLog(`[main] PRELOAD=${path.join(__dirname, 'preload.mjs')}`)
+  writeLog(`[main] PRELOAD=${path.join(__dirname, 'preload.js')}`)
 
   try {
     win = new BrowserWindow({
@@ -53,7 +53,7 @@ function createWindow() {
       },
       show: false,
       webPreferences: {
-        preload: path.join(__dirname, 'preload.mjs'),
+        preload: path.join(__dirname, 'preload.js'),
         nodeIntegration: false,
         contextIsolation: true,
       },

@@ -4,11 +4,10 @@
   "version": "1.0.0",
   "description": "All-in-one Windows network toolkit for gamers and IT professionals.",
   "author": "Uptimizer",
-  "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "concurrently \"tsc -b\" \"tsc -p tsconfig.electron.json\" && node -e \"require('fs').copyFileSync('dist-electron/preload.js','dist-electron/preload.mjs')\" && vite build && electron-builder",
+    "build": "vite build && electron-builder",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest"
