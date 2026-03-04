@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+dist-electron/
+dist-ssr/
+release/
+*.asar
+
+# Logs
+logs/
+*.log
+dev.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+.tmp/
+.cache/
+.vite/
+*.tmp
+
+# World map generation artifacts
+world-map-datauri.txt
+world-map-preview.html
+world-map-preview.png
+world-map-v2.png
+world-map-v3.png
+world-path-output.js
+world-path-raw.txt
+traceroute-arcs.png
+traceroute-arcs-fixed.png
+traceroute-map-hops.png
+traceroute-padded.png
+
+# Sisyphus / OpenCode artifacts
+.sisyphus/
