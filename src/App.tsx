@@ -70,7 +70,7 @@ export default function App() {
       
       {/* Sidebar Navigation */}
       <nav className="w-64 flex-shrink-0 bg-[#060b19] border-r border-[#1e293b] flex flex-col pt-10 relative z-40">
-        <div className="px-6 mb-8 flex items-center gap-3">
+        <div className="px-6 mb-8 flex items-center gap-3" title="Uptimizer v1.0.0">
           <div className="bg-sky-500/10 p-2 rounded-lg border border-sky-500/20">
             <Wifi className="w-6 h-6 text-sky-400" />
           </div>
