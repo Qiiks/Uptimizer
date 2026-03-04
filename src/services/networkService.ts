@@ -1307,43 +1307,55 @@ export const scanLan = async (
 
   const total = 254
   const devices: LanDevice[] = []
+  const BATCH_SIZE = 20
+  let scanned = 0
 
-  // Step 3: Ping sweep + discover
-  for (let i = 1; i <= 254; i++) {
-    const ip = `${subnet}.${i}`
-    const pingResult = await window.networkingApi.executeCommand(`ping -n 1 -w 500 ${ip}`)
-    const pingOut = pingResult.stdout ?? ''
-    const responded = !pingOut.includes('100% loss') && !pingOut.includes('timed out') && pingOut.includes('bytes')
+  // Step 3: Ping sweep + discover (batched concurrent pings)
+  for (let batch = 0; batch < 254; batch += BATCH_SIZE) {
+    const batchIps = Array.from(
+      { length: Math.min(BATCH_SIZE, 254 - batch) },
+      (_, j) => batch + j + 1
+    )
 
-    if (responded || arpCache.has(ip)) {
-      // Try to get MAC from ARP (ping populates ARP cache)
-      const arpResult2 = await window.networkingApi.executeCommand(`arp -a ${ip}`)
-      const arpOut2 = arpResult2.stdout ?? ''
-      const macMatch = arpOut2.match(/([\w:-]{17})/i)
-      const mac = macMatch ? macMatch[1].toUpperCase().replace(/-/g, ':') : (arpCache.get(ip) ?? null)
+    await Promise.all(
+      batchIps.map(async (i) => {
+        const ip = `${subnet}.${i}`
+        const pingResult = await window.networkingApi.executeCommand(`ping -n 1 -w 500 ${ip}`)
+        const pingOut = pingResult.stdout ?? ''
+        const responded = !pingOut.includes('100% loss') && !pingOut.includes('timed out') && pingOut.includes('bytes')
+        scanned++
 
-      const vendor = mac ? lookupVendor(mac) : null
+        if (responded || arpCache.has(ip)) {
+          // Try to get MAC from ARP (ping populates ARP cache)
+          const arpResult2 = await window.networkingApi.executeCommand(`arp -a ${ip}`)
+          const arpOut2 = arpResult2.stdout ?? ''
+          const macMatch = arpOut2.match(/([\w:-]{17})/i)
+          const mac = macMatch ? macMatch[1].toUpperCase().replace(/-/g, ':') : (arpCache.get(ip) ?? null)
 
-      // Hostname lookup (best effort, fast timeout)
-      let hostname: string | null = null
-      const nsResult = await window.networkingApi.executeCommand(`nslookup ${ip}`)
-      const nsOut = nsResult.stdout ?? ''
-      const nameMatch = nsOut.match(/Name:\s+(.+)/i)
-      if (nameMatch) hostname = nameMatch[1].trim()
+          const vendor = mac ? lookupVendor(mac) : null
 
-      const device: LanDevice = {
-        ip,
-        mac,
-        vendor,
-        hostname,
-        isOwn: ip === ownIp,
-        status: responded ? 'online' : 'arp-only'
-      }
-      devices.push(device)
-      onProgress(i, total, device)
-    } else {
-      onProgress(i, total)
-    }
+          // Hostname lookup (best effort, fast timeout)
+          let hostname: string | null = null
+          const nsResult = await window.networkingApi.executeCommand(`nslookup ${ip}`)
+          const nsOut = nsResult.stdout ?? ''
+          const nameMatch = nsOut.match(/Name:\s+(.+)/i)
+          if (nameMatch) hostname = nameMatch[1].trim()
+
+          const device: LanDevice = {
+            ip,
+            mac,
+            vendor,
+            hostname,
+            isOwn: ip === ownIp,
+            status: responded ? 'online' : 'arp-only'
+          }
+          devices.push(device)
+          onProgress(scanned, total, device)
+        } else {
+          onProgress(scanned, total)
+        }
+      })
+    )
   }
 
   return devices
