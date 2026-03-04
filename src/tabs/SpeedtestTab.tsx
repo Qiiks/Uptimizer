@@ -103,7 +103,7 @@ function SpeedRing({ value, maxValue, label, unit, color, animating }: RingProps
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
-  }, [value, animating]) // intentionally omit displayValue to avoid re-triggering
+  }, [value, animating, displayValue]) // intentionally omit displayValue to avoid re-triggering
 
   // Live tick during test phase
   useEffect(() => {

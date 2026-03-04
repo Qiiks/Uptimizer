@@ -50,7 +50,6 @@ export default function WarpTab() {
     }
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     void refreshStatus()
     void refreshPop()

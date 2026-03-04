@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Gauge, RotateCcw, Terminal, Trash2 } from 'lucide-react'
 import { getPowerPlans, setPowerPlan, deletePowerPlan } from '../services/networkService'
 import type { PowerPlan } from '../services/networkService'
@@ -63,16 +63,17 @@ export default function PowerPlanTab() {
 
   const appendLog = (line: string) => setLogs(prev => [...prev, line])
 
-  const reloadPlans = async () => {
+  const reloadPlans = useCallback(async () => {
     const updated = await getPowerPlans()
     setPlans(updated)
     return updated
-  }
+  }, [])
 
   // Load plans on mount
   useEffect(() => {
-    reloadPlans()
-  }, [])
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void reloadPlans()
+  }, [reloadPlans])
 
   // ── Switch Plan ─────────────────────────────────────────────────────────────
   const handleSwitch = async (plan: PowerPlan) => {

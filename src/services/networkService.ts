@@ -795,11 +795,17 @@ export const getWifiNetworks = async (): Promise<WifiNetwork[]> => {
       const channelMatch = bblock.match(/Channel\s*:\s*(\d+)/i)
       const channel = channelMatch ? parseInt(channelMatch[1], 10) : 0
 
-      // Determine band from channel
+      // Determine band from channel number.
+      // 2.4 GHz: channels 1–14 (2412–2484 MHz)
+      // 5 GHz:   channels 36–177 (5180–5885 MHz)
+      // 6 GHz:   channels 183–233 (5955–7125 MHz) — unambiguous range above 5 GHz
+      // Note: Windows reports "802.11ax" for all bands, so radio type cannot distinguish them.
+      // Channels 1–14 technically overlap with 6 GHz numbering but 2.4 GHz is the safe default
+      // when frequency data is unavailable (netsh wlan does not report frequency).
       let band: WifiNetwork['band'] = 'Unknown'
       if (channel >= 1 && channel <= 14) band = '2.4 GHz'
       else if (channel >= 36 && channel <= 177) band = '5 GHz'
-      else if (channel >= 1 && radioType.includes('802.11ax')) band = '6 GHz'
+      else if (channel >= 183 && channel <= 233) band = '6 GHz'
 
       const authMatch = block.match(/Authentication\s*:\s*(.+)/i)
       const authentication = authMatch ? authMatch[1].trim() : 'Unknown'
@@ -883,6 +889,7 @@ const MOCK_ROUTES: MockHop[][] = [
 ]
 
 // Pick a route index 0-3 based on the target string (deterministic, no external call)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const pickMockRoute = (target: string): MockHop[] => {
   // Private / LAN targets → short route
   if (
@@ -971,6 +978,7 @@ export const runTraceroute = async (target: string): Promise<TraceHop[]> => {
         }
       })
     } catch (err) {
+      console.error('Batch geolocation failed:', err)
       // ip-api.com request failed — apply fallback data for any known IPs
       publicHops.forEach(hop => {
         if (hop.ip && FALLBACK_GEOLOCATION[hop.ip]) {

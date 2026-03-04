@@ -11,7 +11,7 @@ const PROFILES = {
     description: 'Reduces buffer bloat and ACK delays for competitive play.',
     commands: [
       'netsh int tcp set global autotuninglevel=highlyrestricted',
-      'netsh int tcp set global congestionprovider=none',
+      'netsh int tcp set global congestionprovider=ctcp',
       'netsh int tcp set global ecncapability=disabled',
       'netsh int tcp set global timestamps=enabled',
       'netsh int tcp set global initialrto=2000',
